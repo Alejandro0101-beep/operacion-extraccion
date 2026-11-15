@@ -1,0 +1,2479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operación Extracción V11 - Vida del Tank</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #101719;
+  font-family: Arial, sans-serif;
+}
+
+#hud {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 5;
+  padding: 13px 16px;
+  background: #10191be8;
+  border-left: 3px solid #8fac94;
+  color: white;
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 330px;
+}
+
+#zona { color: #a9cbd0; }
+#objetivo { color: #e3cd88; }
+
+#armasHUD {
+  position: fixed;
+  bottom: 20px;
+  right: 22px;
+  z-index: 5;
+  padding: 14px 20px;
+  background: #10191be8;
+  color: white;
+  text-align: right;
+  min-width: 180px;
+}
+
+#nombreArma {
+  color: #c5d4ce;
+  font-size: 14px;
+}
+
+#balas {
+  font-size: 34px;
+  font-weight: bold;
+}
+
+#reserva {
+  color: #b5c1bc;
+  font-size: 12px;
+}
+
+#mira {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 24px;
+  pointer-events: none;
+}
+
+#mensaje {
+  position: fixed;
+  bottom: 105px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 12px 19px;
+  background: #111b1ded;
+  color: white;
+  text-align: center;
+  display: none;
+  max-width: 85vw;
+}
+
+#estado {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding: 10px 16px;
+  background: #111b1de0;
+  color: white;
+  font-size: 12px;
+  text-align: center;
+  max-width: 43vw;
+}
+
+#pantalla {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #081013ee;
+}
+
+.panel {
+  background: #1c292c;
+  border: 1px solid #657b70;
+  color: white;
+  width: min(450px, 92vw);
+  padding: 35px;
+  text-align: center;
+}
+
+.panel h1 {
+  font-size: 27px;
+  letter-spacing: 2px;
+}
+
+.panel p {
+  color: #c8d2ca;
+  line-height: 1.7;
+}
+
+button {
+  background: #526d59;
+  color: white;
+  border: 0;
+  padding: 14px 27px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+button:hover { background: #719078; }
+
+#alertaTank {
+  position: fixed;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  color: #ff6565;
+  font-size: 29px;
+  font-weight: bold;
+  text-shadow: 0 2px 8px black;
+  display: none;
+}
+
+#vidaTankHUD {
+  position: fixed;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  width: min(420px, 48vw);
+  pointer-events: none;
+  display: none;
+}
+
+#vidaTankEtiqueta {
+  color: #e1ffeb;
+  font-size: 12px;
+  text-align: center;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  text-shadow: 0 2px 5px #000;
+  margin-bottom: 5px;
+}
+
+#vidaTankFondo {
+  height: 12px;
+  background: #102c1d;
+  border: 1px solid #9bdea9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#vidaTankRelleno {
+  height: 100%;
+  width: 100%;
+  background: #40dd69;
+  transition: width 0.09s linear;
+}
+
+#cargando {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  z-index: 6;
+  background: #111b1ddd;
+  color: #cbd7d0;
+  padding: 8px;
+  font-size: 11px;
+}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+
+<body>
+
+<div id="hud">
+  <b>OPERACIÓN EXTRACCIÓN</b>
+  <div id="zona">Zona: Inicio</div>
+  <div id="objetivo">Entra al Almacén.</div>
+  <div>WASD: moverse | Shift: correr</div>
+  <div>Mouse: mirar y disparar</div>
+  <div>1: pistola | 2: rifle | 3: bazuca</div>
+  <div>R: recargar | E: interactuar</div>
+  <div>ESC: pausar</div>
+</div>
+
+<div id="armasHUD">
+  <div id="nombreArma">PISTOLA 9 MM</div>
+  <div id="balas">12 / 12</div>
+  <div id="reserva">Reserva: 0</div>
+</div>
+
+<div id="mira">+</div>
+<div id="mensaje"></div>
+<div id="estado">Explora las instalaciones.</div>
+<div id="alertaTank">¡TANK DETECTADO!</div>
+<div id="vidaTankHUD" aria-label="Vida del Tank">
+  <div id="vidaTankEtiqueta">TANK · 60 / 60</div>
+  <div id="vidaTankFondo"><div id="vidaTankRelleno"></div></div>
+</div>
+<div id="cargando">Cargando modelos...</div>
+
+<div id="pantalla">
+  <div class="panel">
+    <h1>OPERACIÓN EXTRACCIÓN</h1>
+    <p>
+      Hospital abandonado.<br>
+      Encuentra suministros, sobrevive a los infectados
+      y llega al helipuerto.
+    </p>
+    <button id="jugar">INICIAR PARTIDA</button>
+  </div>
+</div>
+
+<script type="module">
+
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { clone as clonarEsqueleto } from "three/addons/utils/SkeletonUtils.js";
+
+// configuración inicial
+
+const escena = new THREE.Scene();
+escena.background = new THREE.Color(0x202d31);
+escena.fog = new THREE.FogExp2(0x202d31, 0.011);
+
+const camara = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 250);
+
+camara.rotation.order = "YXZ";
+camara.position.set(0, 1.7, 33);
+escena.add(camara);
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true
+});
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+
+document.body.appendChild(renderer.domElement);
+
+// iluminación
+
+escena.add(new THREE.HemisphereLight(0xacc6ce, 0x35352e, 1.8));
+
+const luna = new THREE.DirectionalLight(0xc1d2d0, 2);
+
+luna.position.set(-15, 35, 12);
+luna.castShadow = true;
+luna.shadow.mapSize.set(2048, 2048);
+luna.shadow.camera.left = -50;
+luna.shadow.camera.right = 50;
+luna.shadow.camera.top = 50;
+luna.shadow.camera.bottom = -50;
+
+escena.add(luna);
+
+function luz(x, y, z, color = 0xffdfa8, potencia = 12) {
+  const l = new THREE.PointLight(color, potencia, 13);
+  l.position.set(x, y, z);
+  escena.add(l);
+  return l;
+}
+
+// texturas externas
+
+const cargadorTexturas = new THREE.TextureLoader();
+
+function textura(nombre, x = 1, y = 1) {
+  const tex = cargadorTexturas.load("./texturas/" + nombre, undefined, undefined, (error) =>
+    console.error("Error al cargar textura:", nombre, error)
+  );
+
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(x, y);
+
+  return tex;
+}
+
+const M = {
+  suelo: new THREE.MeshStandardMaterial({
+    map: textura("suelo.jpg", 8, 14),
+    roughness: 0.95
+  }),
+
+  pared: new THREE.MeshStandardMaterial({
+    map: textura("pared.jpg", 2, 2),
+    roughness: 0.95
+  }),
+
+  metal: new THREE.MeshStandardMaterial({
+    map: textura("metal.jpg", 2, 2),
+    metalness: 0.4,
+    roughness: 0.8
+  }),
+
+  baldosas: new THREE.MeshStandardMaterial({
+    map: textura("baldosas.jpg", 3, 3),
+    roughness: 0.9
+  }),
+
+  helipuerto: new THREE.MeshStandardMaterial({
+    map: textura("helipuerto.jpg", 3, 3),
+    roughness: 0.9
+  }),
+
+  madera: new THREE.MeshStandardMaterial({
+    color: 0x68543b,
+    roughness: 0.95
+  }),
+
+  blanco: new THREE.MeshStandardMaterial({
+    color: 0xeae5ce
+  }),
+
+  rojo: new THREE.MeshStandardMaterial({
+    color: 0xbd2929,
+    emissive: 0x310606
+  }),
+
+  verde: new THREE.MeshStandardMaterial({
+    color: 0x30b366,
+    emissive: 0x12552a
+  }),
+
+  municion: new THREE.MeshStandardMaterial({
+    color: 0x63754c,
+    metalness: 0.5,
+    roughness: 0.7
+  })
+};
+
+// creación de bloques y paredes
+
+const obstaculos = [];
+const superficies = [];
+
+function bloque(x, y, z, w, h, d, material, solido = true) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  escena.add(mesh);
+  superficies.push(mesh);
+
+  if (solido) {
+    obstaculos.push(new THREE.Box3().setFromObject(mesh));
+  }
+
+  return mesh;
+}
+
+function paredV(x, desde, hasta, puertas = []) {
+  const huecos = puertas.map((p) => [p - 1.7, p + 1.7]).sort((a, b) => a[0] - b[0]);
+
+  let actual = desde;
+
+  for (const [inicio, fin] of huecos) {
+    if (inicio > actual) {
+      bloque(x, 2.1, (actual + inicio) / 2, 0.45, 4.2, inicio - actual, M.pared);
+    }
+
+    actual = Math.max(actual, fin);
+  }
+
+  if (actual < hasta) {
+    bloque(x, 2.1, (actual + hasta) / 2, 0.45, 4.2, hasta - actual, M.pared);
+  }
+}
+
+function paredH(z, desde, hasta, puertas = []) {
+  const huecos = puertas.map((p) => [p - 1.7, p + 1.7]).sort((a, b) => a[0] - b[0]);
+
+  let actual = desde;
+
+  for (const [inicio, fin] of huecos) {
+    if (inicio > actual) {
+      bloque((actual + inicio) / 2, 2.1, z, inicio - actual, 4.2, 0.45, M.pared);
+    }
+
+    actual = Math.max(actual, fin);
+  }
+
+  if (actual < hasta) {
+    bloque((actual + hasta) / 2, 2.1, z, hasta - actual, 4.2, 0.45, M.pared);
+  }
+}
+
+function piso(x, z, w, d) {
+  bloque(x, 0.025, z, w, 0.05, d, M.baldosas, false);
+}
+
+function techo(x, z, w, d) {
+  bloque(x, 4.35, z, w, 0.3, d, M.helipuerto, false);
+}
+
+// mapa completo
+
+// Suelo principal
+bloque(0, -0.5, 0, 40, 1, 76, M.suelo, false);
+
+// Muros exteriores
+paredV(-20, -38, 38);
+paredV(20, -38, 38);
+paredH(38, -20, 20);
+paredH(-38, -20, 20);
+
+// Zona de inicio
+paredH(28, -6, 6);
+paredV(-6, 28, 38, [33]);
+paredV(6, 28, 38);
+
+// Almacén
+paredV(-6, 10, 28, [18]);
+paredH(10, -20, -6);
+
+piso(-13, 24, 13.5, 27);
+techo(-13, 24, 13.5, 27);
+
+luz(-13, 3.6, 30);
+luz(-13, 3.6, 16);
+
+// GEN
+paredH(10, -6, 6);
+paredV(6, 10, 28, [18]);
+
+bloque(-2.5, 1.15, 19, 3.5, 2.3, 3, M.metal);
+bloque(-2.5, 2.45, 19, 3, 0.3, 2.5, M.metal);
+
+luz(1, 5, 20);
+
+// Pasillo
+paredH(10, 6, 20, [13]);
+
+piso(13, 19, 13.5, 17.5);
+techo(13, 19, 13.5, 17.5);
+
+luz(13, 3.6, 19);
+
+// H1 abierto
+paredV(6, -10, 10);
+paredH(-10, 6, 20, [13]);
+
+luz(14, 5, 0, 0xc5d5ff);
+
+// F4
+paredV(6, -28, -10);
+paredH(-28, 6, 20, [13]);
+
+piso(13, -19, 13.5, 17.5);
+techo(13, -19, 13.5, 17.5);
+
+luz(13, 3.6, -19);
+
+// Terraza superior
+luz(-14, 5, -34);
+luz(14, 5, -34);
+
+for (const [x, z] of [
+  [16, -34],
+  [11, -35],
+  [5, -35],
+  [-5, -35],
+  [-11, -34],
+  [-16, -35]
+]) {
+  bloque(x, 0.65, z, 1.5, 1.3, 1.5, M.metal);
+}
+
+// F2
+paredV(-6, -28, -10);
+paredH(-28, -20, -6, [-13]);
+paredH(-10, -20, -6, [-13]);
+
+piso(-13, -19, 13.5, 17.5);
+techo(-13, -19, 13.5, 17.5);
+
+luz(-13, 3.6, -19);
+
+// H3 abierto
+paredH(10, -20, -6);
+paredV(-6, -10, 10, [-5]);
+
+luz(-14, 5, 0, 0xc5d5ff);
+
+// Antena
+bloque(-17, 0.6, 2, 2.2, 1.2, 2.2, M.metal);
+
+const antena = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 6, 12), M.metal);
+
+antena.position.set(-17, 3.5, 4);
+escena.add(antena);
+
+// Cajas decorativas
+for (const [x, z] of [
+  [-17, 34],
+  [-17, 28],
+  [-10, 26],
+  [-17, 19],
+  [-10, 13],
+  [3, 23],
+  [3, 13],
+  [17, 24],
+  [17, 15],
+  [10, 22],
+  [17, 4],
+  [10, -4],
+  [17, -7],
+  [17, -16],
+  [10, -24],
+  [-17, -16],
+  [-10, -24],
+  [-17, -5],
+  [-11, 5]
+]) {
+  bloque(x, 0.6, z, 1.2, 1.2, 1.2, M.madera);
+}
+
+// rampa y helipuerto
+
+const alturaPlataforma = 2.4;
+const pendiente = Math.atan2(alturaPlataforma, 12);
+const largoRampa = Math.hypot(12, alturaPlataforma);
+
+const rampa = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.3, largoRampa), M.helipuerto);
+
+rampa.position.set(0, alturaPlataforma / 2 - 0.15 / Math.cos(pendiente), -16);
+
+rampa.rotation.x = pendiente;
+rampa.receiveShadow = true;
+
+escena.add(rampa);
+superficies.push(rampa);
+
+// Laterales de rampa
+for (const x of [-3.2, 3.2]) {
+  bloque(x, 1.9, -16, 0.4, 3.8, 12, M.metal);
+}
+
+// Plataforma
+bloque(0, 1.2, -27, 12, 2.4, 10, M.helipuerto, false);
+
+// Letra H
+for (const [x, z, w, d] of [
+  [-1.5, -27, 0.7, 4.5],
+  [1.5, -27, 0.7, 4.5],
+  [0, -27, 3.4, 0.7]
+]) {
+  bloque(x, 2.43, z, w, 0.04, d, M.blanco, false);
+}
+
+// Barandas
+bloque(-5.9, 3.3, -27, 0.25, 1.8, 10, M.metal);
+bloque(5.9, 3.3, -27, 0.25, 1.8, 10, M.metal);
+bloque(0, 3.3, -32, 12, 1.8, 0.25, M.metal);
+
+luz(-5, 3.4, -30, 0xff3333, 8);
+luz(5, 3.4, -30, 0xff3333, 8);
+
+// barrera de extracción
+
+const barrera = bloque(0, 1.5, -10.5, 5.8, 3, 0.45, M.metal, false);
+
+const franjas = [];
+
+for (let i = 0; i < 3; i++) {
+  franjas.push(bloque(0, 0.7 + i * 0.8, -10.24, 5.6, 0.15, 0.06, M.rojo, false));
+}
+
+for (const x of [-3.3, 3.3]) {
+  bloque(x, 1.8, -10.5, 0.4, 3.6, 0.7, M.metal);
+}
+
+const luzBarrera = luz(0, 3.8, -10, 0xff2222);
+
+// activador
+
+const posicionActivador = {
+  x: 4.7,
+  z: -6.5
+};
+
+// Base
+bloque(posicionActivador.x, 0.8, posicionActivador.z, 1.2, 1.6, 0.8, M.metal);
+
+// Pantalla
+const pantallaControl = bloque(4.7, 1.5, -6.04, 0.9, 0.6, 0.07, M.rojo, false);
+
+// Luz
+const luzControl = luz(4.7, 2, -6, 0xff4444, 5);
+
+// audio
+
+const carpetaAudio = "./sonidos/";
+
+const canciones = {
+  ambiente: new Audio(carpetaAudio + "ambiente.mp3"),
+  tank: new Audio(carpetaAudio + "tank.mp3")
+};
+
+const volumenCancion = { ambiente: 0.28, tank: 0.4 };
+for (const pista of Object.values(canciones)) {
+  pista.loop = true;
+  pista.preload = "auto";
+  pista.volume = 0;
+}
+
+// volumenes de 0 a 1
+const volumenEfecto = {
+  pistola: 0.52,
+  rifle: 0.32,
+  bazuca: 0.75,
+  explosion: 0.8,
+  zombie: 0.27,
+  zombie_muerte: 0.37,
+  rugido_tank: 0.74,
+  pasos: 0.18,
+  recarga: 0.42,
+  alarma: 0.48,
+  barrera: 0.52,
+  impacto_zombie: 0.38,
+  recoger_municion: 0.5,
+  boton: 0.4
+};
+
+// varios audios por efecto para que el rifle no se corte
+const reproductores = {};
+for (const nombre of Object.keys(volumenEfecto)) {
+  const cantidad = nombre === "rifle" ? 8 : 3;
+  reproductores[nombre] = {
+    indice: 0,
+    elementos: Array.from({ length: cantidad }, () => {
+      const audio = new Audio(carpetaAudio + nombre + ".wav");
+      audio.preload = "auto";
+      return audio;
+    })
+  };
+}
+
+let audioHabilitado = false;
+let cancionActual = "ambiente";
+let tiempoPasos = 0;
+let ultimoGrunido = 0;
+
+function sonido(nombre, intensidad = 1) {
+  if (!audioHabilitado || !reproductores[nombre]) return;
+
+  const banco = reproductores[nombre];
+  const audio = banco.elementos[banco.indice];
+  banco.indice = (banco.indice + 1) % banco.elementos.length;
+
+  audio.pause();
+  try {
+    audio.currentTime = 0;
+  } catch (_) {}
+  audio.volume = THREE.MathUtils.clamp(volumenEfecto[nombre] * intensidad, 0, 1);
+  audio.play().catch(() => {});
+}
+
+function reproducirMusica() {
+  if (!audioHabilitado || victoria || gameOver) return;
+  const musica = canciones[cancionActual];
+  if (musica.paused) {
+    musica.play().catch((e) => console.warn("No se pudo reproducir", cancionActual + ".mp3", e));
+  }
+}
+
+function cambiarMusica(nombre) {
+  if (!canciones[nombre] || cancionActual === nombre) return;
+  cancionActual = nombre;
+  if (jugando) reproducirMusica();
+}
+
+function actualizarMusica(delta) {
+  const activa = audioHabilitado && jugando && !victoria && !gameOver;
+  for (const [nombre, musica] of Object.entries(canciones)) {
+    const objetivo = activa && cancionActual === nombre ? volumenCancion[nombre] : 0;
+    const suavidad = delta * 0.42;
+    musica.volume = THREE.MathUtils.clamp(
+      musica.volume +
+        Math.sign(objetivo - musica.volume) *
+          Math.min(Math.abs(objetivo - musica.volume), suavidad),
+      0,
+      1
+    );
+    if (musica.volume <= 0.001 && objetivo === 0 && !musica.paused) {
+      musica.pause();
+    }
+  }
+}
+
+function detenerMusica() {
+  for (const musica of Object.values(canciones)) {
+    musica.pause();
+  }
+}
+
+// variables de juego
+
+const pantalla = document.getElementById("pantalla");
+const boton = document.getElementById("jugar");
+const mensaje = document.getElementById("mensaje");
+const estado = document.getElementById("estado");
+const alertaTank = document.getElementById("alertaTank");
+const vidaTankHUD = document.getElementById("vidaTankHUD");
+const vidaTankRelleno = document.getElementById("vidaTankRelleno");
+const vidaTankEtiqueta = document.getElementById("vidaTankEtiqueta");
+const VIDA_MAX_TANK = 60;
+
+function actualizarVidaTank(vida) {
+  const actual = Math.max(0, Math.min(VIDA_MAX_TANK, vida));
+  vidaTankRelleno.style.width = (actual / VIDA_MAX_TANK) * 100 + "%";
+  vidaTankEtiqueta.textContent = `TANK · ${actual} / ${VIDA_MAX_TANK}`;
+}
+
+let jugando = false;
+let victoria = false;
+let gameOver = false;
+
+let etapa = 0;
+let activado = false;
+let abriendo = false;
+let abierta = false;
+let tankMuerto = false;
+
+let tiempoApertura = 0;
+let desplazamientoBarrera = 0;
+let avisoHasta = 0;
+
+function avisar(texto, segundos = 2) {
+  mensaje.textContent = texto;
+  mensaje.style.display = "block";
+
+  avisoHasta = performance.now() + segundos * 1000;
+}
+
+function terminar(ganado) {
+  if (victoria || gameOver) return;
+
+  victoria = ganado;
+  gameOver = !ganado;
+
+  jugando = false;
+  disparando = false;
+  vidaTankHUD.style.display = "none";
+
+  pantalla.querySelector("h1").textContent = ganado ? "EXTRACCIÓN COMPLETADA" : "GAME OVER";
+
+  pantalla.querySelector("p").textContent = ganado
+    ? "Sobreviviste y llegaste al helipuerto."
+    : "Un infectado te alcanzó. Inténtalo nuevamente.";
+
+  boton.textContent = "VOLVER A JUGAR";
+  pantalla.style.display = "flex";
+  detenerMusica();
+
+  if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
+}
+
+// recorrido obligatorio
+
+const etapas = [
+  ["Inicio", "Entra al Almacén por la izquierda."],
+  ["Almacén", "Busca suministros y sal hacia GEN."],
+  ["GEN", "Cruza hacia Pasillo."],
+  ["Pasillo", "Busca la salida hacia H1."],
+  ["H1", "Avanza hasta F4."],
+  ["F4", "Sal hacia la terraza."],
+  ["Terraza", "Cruza hasta F2."],
+  ["F2", "Busca la salida hacia H3."],
+  ["H3", "Llega al activador."],
+  ["Activador", "Presiona E frente al panel."],
+  ["Barrera", "Derrota al Tank y sobrevive a la horda."],
+  ["Extracción", "Sube la rampa al helipuerto."]
+];
+
+function actualizarHUD() {
+  document.getElementById("zona").textContent = "Zona: " + etapas[etapa][0];
+
+  document.getElementById("objetivo").textContent = etapas[etapa][1];
+
+  estado.textContent = etapas[etapa][1];
+}
+
+function dentro(x1, x2, z1, z2) {
+  return (
+    camara.position.x > x1 &&
+    camara.position.x < x2 &&
+    camara.position.z > z1 &&
+    camara.position.z < z2
+  );
+}
+
+function revisarProgreso() {
+  const condiciones = [
+    () => dentro(-19, -7, 11, 37),
+    () => dentro(-5, 5, 11, 27),
+    () => dentro(7, 19, 11, 27),
+    () => dentro(7, 19, -9, 9),
+    () => dentro(7, 19, -27, -11),
+    () => dentro(-19, 19, -37, -29),
+    () => dentro(-19, -7, -27, -11),
+    () => dentro(-19, -7, -9, 9),
+    () => dentro(-5, 5, -9, 9)
+  ];
+
+  if (etapa < 9 && condiciones[etapa]()) {
+    etapa++;
+    actualizarHUD();
+    generarOleada(etapa);
+  }
+}
+
+// cargador de modelos
+
+const gltfLoader = new GLTFLoader();
+
+const plantillas = {
+  zombie: null,
+  tank: null
+};
+
+const clipsModelo = {
+  zombie: [],
+  tank: []
+};
+
+const enemigos = [];
+const pendientes = [];
+const oleadasHechas = new Set();
+
+// armas
+
+const armas = {
+  pistola: {
+    nombre: "PISTOLA 9 MM",
+    archivo: "pistola.glb",
+    capacidad: 12,
+    balas: 12,
+    reserva: 0,
+    automatico: false,
+    intervalo: 280,
+    tamano: 0.8
+  },
+
+  rifle: {
+    nombre: "RIFLE",
+    archivo: "rifle.glb",
+    capacidad: 30,
+    balas: 30,
+    reserva: 0,
+    automatico: true,
+    intervalo: 100,
+    tamano: 1.4
+  },
+
+  bazuca: {
+    nombre: "BAZUCA",
+    archivo: "bazuca.glb",
+    capacidad: 1,
+    balas: 0,
+    reserva: 0,
+    automatico: false,
+    intervalo: 1000,
+    tamano: 1.4
+  }
+};
+
+let armaActual = "pistola";
+let disparando = false;
+let ultimoDisparo = -1000;
+let retroceso = 0;
+let flashDuracion = 0;
+
+let bazucaDisponible = false;
+let coheteUsado = false;
+
+const grupoArmas = new THREE.Group();
+camara.add(grupoArmas);
+
+const luzDisparo = new THREE.PointLight(0xffc774, 0, 4);
+
+luzDisparo.position.set(0.4, -0.3, -1);
+camara.add(luzDisparo);
+
+const destello = new THREE.Mesh(
+  new THREE.SphereGeometry(0.09, 8, 8),
+  new THREE.MeshBasicMaterial({ color: 0xffdc83 })
+);
+
+destello.position.set(0.4, -0.3, -1);
+destello.visible = false;
+camara.add(destello);
+
+function cargarArma(tipo) {
+  const a = armas[tipo];
+
+  const grupo = new THREE.Group();
+  grupo.position.set(0.42, -0.38, -0.9);
+  grupo.visible = tipo === armaActual;
+
+  a.grupo = grupo;
+  grupoArmas.add(grupo);
+
+  gltfLoader.load(
+    "./modelos/" + a.archivo,
+
+    (g) => {
+      const obj = g.scene;
+
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+
+      const factor = a.tamano / Math.max(size.x, size.y, size.z, 0.01);
+
+      obj.scale.setScalar(factor);
+      obj.position.copy(center).multiplyScalar(-factor);
+
+      if (size.x > size.y && size.x > size.z) {
+        obj.rotation.y = Math.PI / 2;
+      } else if (size.y > size.z) {
+        obj.rotation.x = Math.PI / 2;
+      }
+
+      obj.traverse((m) => {
+        if (m.isMesh) m.frustumCulled = false;
+      });
+
+      grupo.add(obj);
+      a.modelo = obj;
+
+      console.log("Arma cargada:", tipo);
+    },
+
+    undefined,
+
+    (e) => console.error("Error de arma:", tipo, e)
+  );
+}
+
+for (const tipo of Object.keys(armas)) {
+  cargarArma(tipo);
+}
+
+function actualizarArmasHUD() {
+  const a = armas[armaActual];
+
+  document.getElementById("nombreArma").textContent = a.nombre;
+
+  document.getElementById("balas").textContent = a.balas + " / " + a.capacidad;
+
+  document.getElementById("reserva").textContent = "Reserva: " + a.reserva;
+}
+
+function cambiarArma(tipo) {
+  if (!armas[tipo]) return;
+
+  if (tipo === "bazuca" && !bazucaDisponible) {
+    return;
+  }
+
+  armaActual = tipo;
+  disparando = false;
+  ultimoDisparo = -1000;
+
+  for (const nombre in armas) {
+    armas[nombre].grupo.visible = nombre === tipo;
+  }
+
+  actualizarArmasHUD();
+}
+
+function recargar() {
+  const a = armas[armaActual];
+
+  if (armaActual === "bazuca") {
+    avisar("La bazuca no se puede recargar.");
+    return;
+  }
+
+  const cantidad = Math.min(a.capacidad - a.balas, a.reserva);
+
+  if (cantidad <= 0) {
+    avisar("No tienes munición de reserva.");
+    return;
+  }
+
+  a.balas += cantidad;
+  a.reserva -= cantidad;
+
+  actualizarArmasHUD();
+  sonido("recarga");
+  avisar("Arma recargada.");
+}
+
+// suministros
+
+const suministros = [];
+
+function suministro(x, z, tipo, cantidad) {
+  const grupo = new THREE.Group();
+  grupo.position.set(x, 0.5, z);
+
+  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.55, 0.65), M.municion);
+
+  const tapa = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.7), M.metal);
+
+  tapa.position.y = 0.3;
+  grupo.add(cuerpo, tapa);
+
+  escena.add(grupo);
+
+  suministros.push({
+    grupo,
+    tipo,
+    cantidad,
+    recogido: false
+  });
+}
+
+suministro(-13, 32, "pistola", 24);
+suministro(-11, 20, "rifle", 60);
+suministro(14, 25, "pistola", 24);
+suministro(12, -18, "rifle", 60);
+suministro(-14, -18, "pistola", 24);
+suministro(-11, -25, "rifle", 60);
+
+// municion extra en H3, hay que juntarla antes de activar al tank
+const municionesFinales = [
+  // entrada de H3
+  [-15, -7.5, "rifle", 60],
+  [-12.5, -7.5, "rifle", 60],
+  [-10, -7.5, "pistola", 36],
+
+  // centro
+  [-15, -4, "rifle", 60],
+  [-12.5, -4, "pistola", 36],
+  [-10, -4, "rifle", 60],
+  [-15, 0, "rifle", 60],
+  [-12.5, 0, "pistola", 36],
+  [-10, 0, "rifle", 60],
+
+  // cerca de la salida
+  [-15, 6, "pistola", 36],
+  [-12, 7, "rifle", 60],
+  [-8.5, 6, "pistola", 36]
+];
+
+for (const [x, z, tipo, cantidad] of municionesFinales) {
+  suministro(x, z, tipo, cantidad);
+}
+
+function distancia2D(a, b) {
+  return Math.hypot(a.x - b.x, a.z - b.z);
+}
+
+function cajaCercana() {
+  return suministros.find(
+    (s) => !s.recogido && distancia2D(camara.position, s.grupo.position) < 2.2
+  );
+}
+
+// colisiones de enemigos
+
+const _cajaCol = new THREE.Box3();
+
+function colisionEscenario(x, z, radio, altura = 1.8) {
+  if (x < -19.65 + radio || x > 19.65 - radio || z < -37.65 + radio || z > 37.65 - radio)
+    return true;
+
+  _cajaCol.min.set(x - radio, 0.12, z - radio);
+  _cajaCol.max.set(x + radio, altura, z + radio);
+
+  return obstaculos.some((o) => o.intersectsBox(_cajaCol));
+}
+
+// navegación de zombis y tank
+
+const mapasNav = {};
+
+function prepararMapaNav(tipo, radio) {
+  const paso = 0.5;
+  const minX = -19.5;
+  const minZ = -37.5;
+
+  const columnas = 79;
+  const filas = 151;
+  const total = columnas * filas;
+
+  const libre = new Uint8Array(total);
+  const distancias = new Int32Array(total);
+
+  for (let i = 0; i < total; i++) {
+    const cx = i % columnas;
+    const cz = Math.floor(i / columnas);
+
+    const x = minX + cx * paso;
+    const z = minZ + cz * paso;
+
+    libre[i] = colisionEscenario(x, z, radio, tipo === "tank" ? 2.7 : 1.8) ? 0 : 1;
+  }
+
+  mapasNav[tipo] = {
+    paso,
+    minX,
+    minZ,
+    columnas,
+    filas,
+    total,
+    libre,
+    distancias,
+    ultimoObjetivo: -1,
+    tiempo: 0
+  };
+}
+
+// el tank usa un radio mas chico
+prepararMapaNav("zombie", 0.57);
+prepararMapaNav("tank", 0.45);
+
+function indiceNav(n, x, z) {
+  const col = Math.round((x - n.minX) / n.paso);
+  const fila = Math.round((z - n.minZ) / n.paso);
+
+  if (col < 0 || fila < 0 || col >= n.columnas || fila >= n.filas) return -1;
+
+  return fila * n.columnas + col;
+}
+
+function puntoNav(n, i) {
+  return {
+    x: n.minX + (i % n.columnas) * n.paso,
+    z: n.minZ + Math.floor(i / n.columnas) * n.paso
+  };
+}
+
+function calcularDistancias(n, delta) {
+  n.tiempo -= delta;
+
+  let origen = indiceNav(n, camara.position.x, camara.position.z);
+
+  if (n.tiempo > 0 && origen === n.ultimoObjetivo) return;
+
+  n.tiempo = 0.18;
+  n.ultimoObjetivo = origen;
+  n.distancias.fill(-1);
+
+  // si el jugador esta en una celda bloqueada, buscar la libre mas cercana
+  if (origen < 0 || !n.libre[origen]) {
+    let mejor = -1;
+    let menor = Infinity;
+
+    for (let i = 0; i < n.total; i++) {
+      if (!n.libre[i]) continue;
+
+      const p = puntoNav(n, i);
+      const d = Math.hypot(p.x - camara.position.x, p.z - camara.position.z);
+
+      if (d < menor) {
+        menor = d;
+        mejor = i;
+      }
+    }
+
+    origen = mejor;
+  }
+
+  if (origen < 0) return;
+
+  const cola = new Int32Array(n.total);
+  let principio = 0;
+  let final = 0;
+
+  cola[final++] = origen;
+  n.distancias[origen] = 0;
+
+  while (principio < final) {
+    const i = cola[principio++];
+
+    const x = i % n.columnas;
+    const z = Math.floor(i / n.columnas);
+    const distancia = n.distancias[i] + 1;
+
+    for (const [dx, dz] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ]) {
+      const xx = x + dx;
+      const zz = z + dz;
+
+      if (xx < 0 || zz < 0 || xx >= n.columnas || zz >= n.filas) continue;
+
+      const j = zz * n.columnas + xx;
+
+      if (!n.libre[j] || n.distancias[j] !== -1) continue;
+
+      n.distancias[j] = distancia;
+      cola[final++] = j;
+    }
+  }
+}
+
+function siguientePunto(n, x, z) {
+  const i = indiceNav(n, x, z);
+  if (i < 0) return null;
+
+  const cx = i % n.columnas;
+  const cz = Math.floor(i / n.columnas);
+
+  let mejor = i;
+
+  let valor = n.distancias[i] < 0 ? Infinity : n.distancias[i];
+
+  for (const [dx, dz] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1]
+  ]) {
+    const xx = cx + dx;
+    const zz = cz + dz;
+
+    if (xx < 0 || zz < 0 || xx >= n.columnas || zz >= n.filas) continue;
+
+    const j = zz * n.columnas + xx;
+    const d = n.distancias[j];
+
+    if (n.libre[j] && d >= 0 && d < valor) {
+      valor = d;
+      mejor = j;
+    }
+  }
+
+  return Number.isFinite(valor) ? puntoNav(n, mejor) : null;
+}
+
+// oleadas de zombis
+
+const oleadas = {
+  1: [
+    [-16, 34],
+    [-12, 30],
+    [-17, 25],
+    [-11, 24],
+    [-16, 17],
+    [-10, 13]
+  ],
+
+  2: [
+    [3, 14],
+    [3, 24]
+  ],
+
+  3: [
+    [10, 12.5],
+    [14, 12.5],
+    [17, 13],
+    [10, 16],
+    [17, 17],
+    [10, 20],
+    [14, 21],
+    [17, 23],
+    [10, 25],
+    [17, 26]
+  ],
+
+  4: [
+    [16, 7],
+    [12, 1],
+    [16, -6]
+  ],
+
+  5: [
+    [16, -16],
+    [11, -23]
+  ],
+
+  6: [
+    [16, -34],
+    [11, -32],
+    [5, -34],
+    [-5, -33],
+    [-11, -34],
+    [-16, -32]
+  ],
+
+  7: [
+    [-16, -17],
+    [-11, -23]
+  ],
+
+  8: [
+    [-16, 5],
+    [-12, 0],
+    [-16, -6]
+  ]
+};
+
+// horda final, 20 zombis en 4 grupos
+const hordaFinal = [
+  // H3, izquierda del tank
+  [-18.0, -8.2],
+  [-15.5, -8.0],
+  [-12.8, -7.5],
+  [-18.0, -3.5],
+  [-13.8, -2.6],
+  [-18.1, 5.2],
+  [-12.5, 7.5],
+
+  // fondo del cuarto del activador
+  [-4.3, 7.8],
+  [-2.0, 7.8],
+  [0.2, 7.8],
+  [2.5, 7.8],
+  [4.5, 7.8],
+  [-3.8, 4.7],
+  [3.7, 4.8],
+
+  // centro del cuarto
+  [-4.6, 0.2],
+  [-2.4, 1.7],
+  [0.1, 2.1],
+
+  // al lado de la barrera
+  [-4.7, -8.6],
+  [-3.0, -8.3],
+  [-3.6, -6.0]
+];
+
+function sitioSeguro(tipo, x, z, distanciaMinima = 5) {
+  const radio = tipo === "tank" ? 0.55 : 0.65;
+
+  const opciones = [
+    [0, 0],
+    [0.8, 0],
+    [-0.8, 0],
+    [0, 0.8],
+    [0, -0.8],
+    [1.2, 0],
+    [-1.2, 0],
+    [0, 1.2],
+    [0, -1.2]
+  ];
+
+  for (const [dx, dz] of opciones) {
+    const px = x + dx;
+    const pz = z + dz;
+
+    if (Math.hypot(px - camara.position.x, pz - camara.position.z) < distanciaMinima) continue;
+
+    if (colisionEscenario(px, pz, radio, tipo === "tank" ? 2.7 : 1.8)) continue;
+
+    const ocupado = enemigos.some(
+      (e) =>
+        e.vivo && Math.hypot(e.raiz.position.x - px, e.raiz.position.z - pz) < radio + e.radio + 0.3
+    );
+
+    if (ocupado) continue;
+
+    return { x: px, z: pz };
+  }
+
+  return null;
+}
+
+function aparecer(tipo, x, z, permanente = false, minDist = 5) {
+  const sitio = sitioSeguro(tipo, x, z, minDist);
+
+  if (!sitio) {
+    console.warn("No se encontró sitio:", tipo, x, z);
+    return false;
+  }
+
+  pendientes.push({
+    tipo,
+    x: sitio.x,
+    z: sitio.z,
+    permanente
+  });
+
+  procesarPendientes();
+  return true;
+}
+
+function generarOleada(numero) {
+  if (oleadasHechas.has(numero)) return;
+
+  oleadasHechas.add(numero);
+
+  for (const [x, z] of oleadas[numero] || []) {
+    aparecer("zombie", x, z, false, 5);
+  }
+}
+
+// animaciones de enemigos
+
+function clipPara(clips, tipo) {
+  const patrones = {
+    caminar: [/walk/i, /run/i, /move/i],
+    reposo: [/idle/i, /stand/i],
+    morir: [/death/i, /die/i],
+    atacar: [/attack/i]
+  };
+
+  for (const patron of patrones[tipo] || []) {
+    const clip = clips.find((c) => patron.test(c.name));
+
+    if (clip) return clip;
+  }
+
+  return null;
+}
+
+function animarEnemigo(e, tipo) {
+  if (!e.mixer || e.animacion === tipo) return;
+
+  const clip = clipPara(e.clips, tipo);
+  if (!clip) return;
+
+  const accion = e.mixer.clipAction(clip);
+
+  if (e.accion && e.accion !== accion) {
+    e.accion.fadeOut(0.12);
+  }
+
+  accion.reset();
+
+  accion.setLoop(
+    tipo === "morir" ? THREE.LoopOnce : THREE.LoopRepeat,
+    tipo === "morir" ? 1 : Infinity
+  );
+
+  accion.clampWhenFinished = true;
+  accion.fadeIn(0.12).play();
+
+  e.accion = accion;
+  e.animacion = tipo;
+}
+
+// creación de zombis y tank
+
+function crearEnemigo(p) {
+  const base = plantillas[p.tipo];
+  const raiz = new THREE.Group();
+
+  raiz.position.set(p.x, 0, p.z);
+
+  const modelo = clonarEsqueleto(base);
+  modelo.updateMatrixWorld(true);
+
+  const caja = new THREE.Box3().setFromObject(modelo);
+  const size = caja.getSize(new THREE.Vector3());
+
+  const tamanoDeseado = p.tipo === "tank" ? 3.5 : 1.9;
+
+  const dimensionMayor = Math.max(size.x, size.y, size.z, 0.01);
+
+  // ajuste de escala
+  const escala = (tamanoDeseado / dimensionMayor) * 1.2;
+
+  modelo.scale.setScalar(escala);
+
+  modelo.position.set(
+    (-(caja.min.x + caja.max.x) * escala) / 2,
+    -caja.min.y * escala,
+    (-(caja.min.z + caja.max.z) * escala) / 2
+  );
+
+  raiz.add(modelo);
+  escena.add(raiz);
+
+  const clips = clipsModelo[p.tipo];
+
+  const e = {
+    tipo: p.tipo,
+    raiz,
+    modelo,
+    clips,
+
+    mixer: clips.length ? new THREE.AnimationMixer(modelo) : null,
+
+    accion: null,
+    animacion: "",
+
+    vida: p.tipo === "tank" ? VIDA_MAX_TANK : 2,
+    vivo: true,
+
+    velocidad: p.tipo === "tank" ? 3.4 : 2.9,
+
+    // hitbox de movimiento
+    radio: p.tipo === "tank" ? 0.55 : 0.62,
+
+    // hitbox de disparos
+    hitRadio: p.tipo === "tank" ? 1.45 : 0.85,
+
+    detectar: p.tipo === "tank" ? Infinity : 14,
+    permanente: p.permanente,
+
+    // -1 izquierda, 0 directo, 1 derecha
+    flanco:
+      p.tipo === "zombie" && p.permanente
+        ? (enemigos.filter((v) => v.permanente && v.tipo === "zombie").length % 3) - 1
+        : 0,
+
+    tiempoMuerto: 0
+  };
+
+  if (p.permanente && p.tipo === "zombie") {
+    // la horda va mas lenta
+    e.velocidad = 2.15;
+    e.radio = 0.42;
+  }
+
+  enemigos.push(e);
+  animarEnemigo(e, "reposo");
+
+  return e;
+}
+
+function procesarPendientes() {
+  for (let i = pendientes.length - 1; i >= 0; i--) {
+    const p = pendientes[i];
+
+    if (!plantillas[p.tipo]) continue;
+
+    pendientes.splice(i, 1);
+    crearEnemigo(p);
+  }
+}
+
+let modelosPendientes = 2;
+
+for (const tipo of ["zombie", "tank"]) {
+  gltfLoader.load(
+    "./modelos/" + tipo + ".glb",
+
+    (g) => {
+      plantillas[tipo] = g.scene;
+      clipsModelo[tipo] = g.animations || [];
+
+      console.log(
+        "Modelo cargado:",
+        tipo,
+        clipsModelo[tipo].map((c) => c.name)
+      );
+
+      procesarPendientes();
+
+      modelosPendientes--;
+
+      if (modelosPendientes === 0) {
+        document.getElementById("cargando").style.display = "none";
+      }
+    },
+
+    undefined,
+
+    (error) => {
+      console.error("Error cargando " + tipo, error);
+
+      document.getElementById("cargando").textContent = "Error: " + tipo + ".glb";
+    }
+  );
+}
+
+function eliminarEnemigo(e) {
+  if (!e.vivo) return;
+
+  e.vivo = false;
+  e.tiempoMuerto = 1.6;
+
+  animarEnemigo(e, "morir");
+  if (e.tipo === "zombie") sonido("zombie_muerte", 0.8);
+
+  if (e.tipo === "tank") {
+    e.vida = 0;
+    actualizarVidaTank(0);
+    vidaTankHUD.style.display = "none";
+    tankMuerto = true;
+    bazucaDisponible = false;
+    armas.bazuca.balas = 0;
+
+    cambiarArma("rifle");
+    cambiarMusica("ambiente");
+
+    alertaTank.style.display = "none";
+    avisar("¡TANK DERROTADO! Bazuca retirada.", 4);
+  }
+}
+
+// persecución
+
+function caminoDirecto(e, destinoX, destinoZ) {
+  const x = e.raiz.position.x;
+  const z = e.raiz.position.z;
+
+  const distancia = Math.hypot(destinoX - x, destinoZ - z);
+
+  const pasos = Math.max(1, Math.ceil(distancia / 0.5));
+
+  for (let i = 1; i <= pasos; i++) {
+    const t = i / pasos;
+
+    const px = x + (destinoX - x) * t;
+    const pz = z + (destinoZ - z) * t;
+
+    if (colisionEscenario(px, pz, e.radio, e.tipo === "tank" ? 2.7 : 1.8)) return false;
+  }
+
+  return true;
+}
+
+function actualizarEnemigos(delta) {
+  calcularDistancias(mapasNav.zombie, delta);
+  calcularDistancias(mapasNav.tank, delta);
+
+  for (let i = enemigos.length - 1; i >= 0; i--) {
+    const e = enemigos[i];
+
+    if (e.mixer) {
+      e.mixer.update(delta);
+    }
+
+    if (!e.vivo) {
+      e.tiempoMuerto -= delta;
+
+      if (!clipPara(e.clips, "morir")) {
+        e.raiz.rotation.z = Math.min(Math.PI / 2, e.raiz.rotation.z + delta * 2);
+      }
+
+      if (e.tiempoMuerto <= 0) {
+        escena.remove(e.raiz);
+        enemigos.splice(i, 1);
+      }
+
+      continue;
+    }
+
+    const dx = camara.position.x - e.raiz.position.x;
+    const dz = camara.position.z - e.raiz.position.z;
+
+    const distancia = Math.hypot(dx, dz);
+
+    if (distancia < e.radio + 0.36 && Math.abs(camara.position.y - 1.7) < 1.2) {
+      terminar(false);
+      return;
+    }
+
+    if (!e.permanente && distancia > e.detectar) {
+      animarEnemigo(e, "reposo");
+      continue;
+    }
+
+    if (e.tipo === "zombie" && distancia < 10 && performance.now() - ultimoGrunido > 2900) {
+      sonido("zombie", 0.7);
+      ultimoGrunido = performance.now();
+    }
+
+    let destino;
+
+    if (caminoDirecto(e, camara.position.x, camara.position.z)) {
+      destino = {
+        x: camara.position.x,
+        z: camara.position.z
+      };
+
+      // en la horda algunos rodean al jugador, de cerca van directo
+      if (e.tipo === "zombie" && e.permanente && e.flanco !== 0 && distancia > 3.2) {
+        const lateral = Math.min(1.8, (distancia - 3.2) * 0.42);
+        const objetivoX = camara.position.x + (-dz / distancia) * e.flanco * lateral;
+        const objetivoZ = camara.position.z + (dx / distancia) * e.flanco * lateral;
+
+        if (
+          !colisionEscenario(objetivoX, objetivoZ, e.radio) &&
+          caminoDirecto(e, objetivoX, objetivoZ)
+        ) {
+          destino = { x: objetivoX, z: objetivoZ };
+        }
+      }
+    } else {
+      destino = siguientePunto(mapasNav[e.tipo], e.raiz.position.x, e.raiz.position.z);
+    }
+
+    if (!destino) {
+      animarEnemigo(e, "reposo");
+      continue;
+    }
+
+    const mx = destino.x - e.raiz.position.x;
+    const mz = destino.z - e.raiz.position.z;
+    const md = Math.hypot(mx, mz);
+
+    if (md < 0.03) continue;
+
+    const ux = mx / md;
+    const uz = mz / md;
+
+    const paso = Math.min(e.velocidad * delta, md);
+
+    e.raiz.rotation.y = Math.atan2(ux, uz);
+    animarEnemigo(e, "caminar");
+
+    const xx = e.raiz.position.x + ux * paso;
+    const zz = e.raiz.position.z + uz * paso;
+
+    const altura = e.tipo === "tank" ? 2.7 : 1.8;
+
+    if (!colisionEscenario(xx, e.raiz.position.z, e.radio, altura)) {
+      e.raiz.position.x = xx;
+    }
+
+    if (!colisionEscenario(e.raiz.position.x, zz, e.radio, altura)) {
+      e.raiz.position.z = zz;
+    }
+  }
+}
+
+// sistema de disparos
+
+const raycaster = new THREE.Raycaster();
+
+const impactos = [];
+const explosiones = [];
+const cohetes = [];
+
+function marcaImpacto(p) {
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(0.055, 7, 7),
+    new THREE.MeshBasicMaterial({
+      color: 0x171717
+    })
+  );
+
+  m.position.copy(p);
+  escena.add(m);
+
+  impactos.push({
+    m,
+    vida: 7
+  });
+
+  if (impactos.length > 65) {
+    const viejo = impactos.shift();
+
+    escena.remove(viejo.m);
+    viejo.m.geometry.dispose();
+    viejo.m.material.dispose();
+  }
+}
+
+function rayEnemigos(origen, dir, distMax = 100) {
+  const rayo = new THREE.Ray(origen, dir);
+
+  let mejor = null;
+  let menor = distMax;
+
+  for (const e of enemigos) {
+    if (!e.vivo) continue;
+
+    const centro = e.raiz.position.clone();
+
+    centro.y = e.tipo === "tank" ? 1.75 : 0.95;
+
+    const esfera = new THREE.Sphere(centro, e.hitRadio);
+
+    const p = rayo.intersectSphere(esfera, new THREE.Vector3());
+
+    if (p) {
+      const distancia = p.distanceTo(origen);
+
+      if (distancia < menor) {
+        menor = distancia;
+        mejor = {
+          e,
+          p,
+          d: distancia
+        };
+      }
+    }
+  }
+
+  return mejor;
+}
+
+function explosion(p) {
+  sonido("explosion");
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 18, 12),
+    new THREE.MeshBasicMaterial({
+      color: 0xffa434,
+      transparent: true,
+      opacity: 0.8,
+      depthWrite: false
+    })
+  );
+
+  m.position.copy(p);
+  escena.add(m);
+
+  explosiones.push({
+    m,
+    vida: 0.4
+  });
+
+  for (const e of enemigos) {
+    if (!e.vivo) continue;
+
+    const centro = e.raiz.position.clone();
+
+    centro.y = e.tipo === "tank" ? 1.75 : 0.95;
+
+    if (centro.distanceTo(p) < 3.5) {
+      eliminarEnemigo(e);
+    }
+  }
+}
+
+function disparar() {
+  if (!jugando || victoria || gameOver) return;
+
+  const a = armas[armaActual];
+
+  if (a.balas <= 0) {
+    avisar("Sin balas. Busca suministros.", 1);
+    disparando = false;
+    return;
+  }
+
+  a.balas--;
+  actualizarArmasHUD();
+  sonido(armaActual);
+
+  retroceso = armaActual === "rifle" ? 0.08 : 0.13;
+
+  destello.visible = true;
+  flashDuracion = 0.055;
+  luzDisparo.intensity = 13;
+
+  const dir = new THREE.Vector3();
+  camara.getWorldDirection(dir);
+
+  if (armaActual === "bazuca") {
+    coheteUsado = true;
+
+    const origen = camara.position.clone().addScaledVector(dir, 1.2);
+
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.42, 10), M.metal);
+
+    m.position.copy(origen);
+
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+    escena.add(m);
+
+    cohetes.push({
+      m,
+      dir: dir.clone(),
+      viajado: 0
+    });
+
+    avisar("¡Último cohete disparado!", 2);
+    return;
+  }
+
+  if (armaActual === "rifle") {
+    dir.x += (Math.random() - 0.5) * 0.018;
+    dir.y += (Math.random() - 0.5) * 0.018;
+    dir.z += (Math.random() - 0.5) * 0.018;
+    dir.normalize();
+  }
+
+  raycaster.set(camara.position, dir);
+  raycaster.far = 90;
+
+  const choque = raycaster.intersectObjects(superficies, false)[0];
+
+  const hit = rayEnemigos(camara.position, dir, choque ? choque.distance : 90);
+
+  if (hit) {
+    if (hit.e.tipo === "zombie") {
+      sonido("impacto_zombie", 0.8);
+      hit.e.vida--;
+
+      if (hit.e.vida <= 0) {
+        eliminarEnemigo(hit.e);
+      }
+    } else if (hit.e.tipo === "tank") {
+      // 1 vida por bala
+      sonido("impacto_zombie", 0.5);
+      hit.e.vida = Math.max(0, hit.e.vida - 1);
+      actualizarVidaTank(hit.e.vida);
+
+      if (hit.e.vida === 0) {
+        eliminarEnemigo(hit.e);
+      }
+    }
+
+    marcaImpacto(hit.p);
+  } else if (choque) {
+    marcaImpacto(choque.point);
+  }
+}
+
+function actualizarCohetes(delta) {
+  for (let i = cohetes.length - 1; i >= 0; i--) {
+    const c = cohetes[i];
+
+    const origen = c.m.position.clone();
+    const avance = 30 * delta;
+
+    raycaster.set(origen, c.dir);
+    raycaster.far = avance;
+
+    const choque = raycaster.intersectObjects(superficies, false)[0];
+
+    const hit = rayEnemigos(origen, c.dir, choque ? Math.min(avance, choque.distance) : avance);
+
+    let puntoImpacto = null;
+
+    if (hit) {
+      puntoImpacto = hit.p;
+    } else if (choque) {
+      puntoImpacto = choque.point;
+    }
+
+    if (puntoImpacto) {
+      c.m.position.copy(puntoImpacto);
+      explosion(puntoImpacto);
+    } else {
+      c.m.position.addScaledVector(c.dir, avance);
+
+      c.viajado += avance;
+
+      if (c.viajado > 70) {
+        explosion(c.m.position);
+      }
+    }
+
+    if (puntoImpacto || c.viajado > 70) {
+      escena.remove(c.m);
+      c.m.geometry.dispose();
+      cohetes.splice(i, 1);
+    }
+  }
+}
+
+// palanca y batalla final
+
+function distanciaControl() {
+  return Math.hypot(
+    camara.position.x - posicionActivador.x,
+    camara.position.z - posicionActivador.z
+  );
+}
+
+function activarPalanca() {
+  if (activado || etapa !== 9) return;
+
+  activado = true;
+  etapa = 10;
+  actualizarHUD();
+
+  pantallaControl.material = M.verde;
+  luzControl.color.set(0x33ff77);
+  luzBarrera.color.set(0xffaa22);
+
+  tiempoApertura = 7;
+
+  sonido("boton");
+  sonido("alarma");
+  sonido("rugido_tank");
+  cambiarMusica("tank");
+
+  // sale el tank
+  aparecer("tank", -15, 3, true, 8);
+  actualizarVidaTank(VIDA_MAX_TANK);
+  vidaTankHUD.style.display = "block";
+
+  // sale la horda (minDist 10 para que no aparezcan cerca)
+  let generadosFinal = 0;
+  for (const [x, z] of hordaFinal) {
+    if (aparecer("zombie", x, z, true, 5.0)) generadosFinal++;
+  }
+  console.log("Zombis de la horda final:", generadosFinal, "/", hordaFinal.length);
+
+  // bazuca, 1 bala
+  bazucaDisponible = true;
+  coheteUsado = false;
+  armas.bazuca.balas = 1;
+
+  cambiarArma("bazuca");
+
+  alertaTank.style.display = "block";
+
+  avisar("¡TANK + HORDA! Tienes un solo cohete.", 5);
+}
+
+function interactuar() {
+  if (!jugando || victoria || gameOver) return;
+
+  const s = cajaCercana();
+
+  if (s) {
+    s.recogido = true;
+    s.grupo.visible = false;
+
+    armas[s.tipo].reserva += s.cantidad;
+    actualizarArmasHUD();
+    sonido("recoger_municion");
+
+    avisar("+" + s.cantidad + " balas de " + s.tipo);
+
+    return;
+  }
+
+  if (etapa === 9 && distanciaControl() < 2.6) {
+    activarPalanca();
+  }
+}
+
+// movimiento del jugador
+
+const teclas = {};
+
+let yaw = 0;
+let pitch = 0;
+
+const ojos = 1.7;
+const radioJugador = 0.32;
+
+function alturaSuelo(x, z) {
+  if (Math.abs(x) < 2.9 && z <= -10 && z >= -22) {
+    return ((-z - 10) / 12) * alturaPlataforma;
+  }
+
+  if (Math.abs(x) < 5.75 && z < -22 && z >= -31.85) {
+    return alturaPlataforma;
+  }
+
+  return 0;
+}
+
+function puedeMoverse(x, z) {
+  const anterior = camara.position.y - ojos;
+  const nueva = alturaSuelo(x, z);
+
+  if (Math.abs(nueva - anterior) > 0.45) {
+    return false;
+  }
+
+  const caja = new THREE.Box3(
+    new THREE.Vector3(x - radioJugador, nueva + 0.1, z - radioJugador),
+
+    new THREE.Vector3(x + radioJugador, nueva + 1.8, z + radioJugador)
+  );
+
+  if (obstaculos.some((o) => o.intersectsBox(caja))) {
+    return false;
+  }
+
+  // la barrera solo bloquea si esta enfrente
+  const cajaBarrera = new THREE.Box3().setFromObject(barrera);
+
+  if (cajaBarrera.intersectsBox(caja)) {
+    return false;
+  }
+
+  return true;
+}
+
+// controles
+
+boton.addEventListener("click", () => {
+  if (victoria || gameOver) {
+    location.reload();
+    return;
+  }
+
+  // el audio solo arranca despues de un click
+  audioHabilitado = true;
+  sonido("boton");
+  reproducirMusica();
+  try {
+    const lock = document.body.requestPointerLock({ unadjustedMovement: true });
+    if (lock && lock.catch) {
+      lock.catch(() => document.body.requestPointerLock());
+    }
+  } catch (_) {
+    document.body.requestPointerLock();
+  }
+});
+
+document.addEventListener("pointerlockchange", () => {
+  jugando = document.pointerLockElement === document.body && !victoria && !gameOver;
+
+  if (!jugando) {
+    disparando = false;
+    // pausar musica con ESC
+    detenerMusica();
+  } else {
+    reproducirMusica();
+  }
+
+  if (!victoria && !gameOver) {
+    pantalla.style.display = jugando ? "none" : "flex";
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  teclas[e.code] = true;
+
+  if (e.repeat) return;
+
+  if (e.code === "Digit1") {
+    cambiarArma("pistola");
+  }
+
+  if (e.code === "Digit2") {
+    cambiarArma("rifle");
+  }
+
+  if (e.code === "Digit3") {
+    cambiarArma("bazuca");
+  }
+
+  if (e.code === "KeyR" && jugando) {
+    recargar();
+  }
+
+  if (e.code === "KeyE") {
+    interactuar();
+  }
+
+  // orientacion de las armas
+
+  if (e.code === "KeyX" && armas[armaActual].modelo) {
+    armas[armaActual].modelo.rotation.x += Math.PI / 2;
+  }
+});
+
+document.addEventListener("keyup", (e) => {
+  teclas[e.code] = false;
+});
+
+// mouse
+
+const sensibilidadMouse = 0.0008;
+let giroX = 0;
+let giroY = 0;
+
+document.addEventListener("mousemove", (e) => {
+  if (!jugando) return;
+
+  const mx = e.movementX;
+  const my = e.movementY;
+
+  if (!Number.isFinite(mx) || !Number.isFinite(my)) return;
+
+  // picos raros
+  if (Math.abs(mx) > 250 || Math.abs(my) > 250) return;
+
+  giroX += mx;
+  giroY += my;
+});
+
+document.addEventListener("mousedown", (e) => {
+  if (e.button !== 0 || !jugando) return;
+
+  disparando = true;
+
+  const a = armas[armaActual];
+  const ahora = performance.now();
+
+  if (ahora - ultimoDisparo >= a.intervalo) {
+    ultimoDisparo = ahora;
+    disparar();
+  }
+});
+
+document.addEventListener("mouseup", (e) => {
+  if (e.button === 0) {
+    disparando = false;
+  }
+});
+
+window.addEventListener("blur", () => {
+  disparando = false;
+
+  for (const tecla in teclas) {
+    teclas[tecla] = false;
+  }
+});
+
+document.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+});
+
+// bucle principal
+
+const reloj = new THREE.Clock();
+
+function animar() {
+  requestAnimationFrame(animar);
+
+  const delta = Math.min(reloj.getDelta(), 0.05);
+
+  // mouse, una vez por frame
+  if (jugando) {
+    yaw -= giroX * sensibilidadMouse;
+    pitch = THREE.MathUtils.clamp(pitch - giroY * sensibilidadMouse, -1.4, 1.4);
+    camara.rotation.set(pitch, yaw, 0, "YXZ");
+  }
+  giroX = 0;
+  giroY = 0;
+
+  if (jugando && !victoria && !gameOver) {
+    const dir = new THREE.Vector3();
+
+    if (teclas.KeyW) dir.z -= 1;
+    if (teclas.KeyS) dir.z += 1;
+    if (teclas.KeyA) dir.x -= 1;
+    if (teclas.KeyD) dir.x += 1;
+
+    if (dir.lengthSq() > 0) {
+      const xAnterior = camara.position.x;
+      const zAnterior = camara.position.z;
+      dir.normalize();
+
+      dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+
+      const velocidad = teclas.ShiftLeft || teclas.ShiftRight ? 6.8 : 5.5;
+
+      const paso = velocidad * delta;
+
+      const nx = camara.position.x + dir.x * paso;
+
+      if (puedeMoverse(nx, camara.position.z)) {
+        camara.position.x = nx;
+      }
+
+      const nz = camara.position.z + dir.z * paso;
+
+      if (puedeMoverse(camara.position.x, nz)) {
+        camara.position.z = nz;
+      }
+
+      // pasos
+      if (Math.hypot(camara.position.x - xAnterior, camara.position.z - zAnterior) > 0.005) {
+        tiempoPasos -= delta;
+        if (tiempoPasos <= 0) {
+          const corriendo = teclas.ShiftLeft || teclas.ShiftRight;
+          sonido("pasos", corriendo ? 1.1 : 0.8);
+          tiempoPasos = corriendo ? 0.24 : 0.38;
+        }
+      }
+    } else {
+      tiempoPasos = 0;
+    }
+
+    // altura de la camara
+    camara.position.y = alturaSuelo(camara.position.x, camara.position.z) + ojos;
+
+    // progreso y enemigos
+    revisarProgreso();
+    procesarPendientes();
+
+    actualizarEnemigos(delta);
+    actualizarCohetes(delta);
+
+    // rifle automatico
+    const arma = armas[armaActual];
+
+    if (disparando && arma.automatico && arma.balas > 0) {
+      const ahora = performance.now();
+
+      if (ahora - ultimoDisparo >= arma.intervalo) {
+        ultimoDisparo = ahora;
+        disparar();
+      }
+    }
+
+    // cuenta regresiva
+    if (activado && !abriendo) {
+      tiempoApertura -= delta;
+
+      if (tiempoApertura <= 0) {
+        abriendo = true;
+        sonido("barrera");
+      }
+    }
+
+    // abrir barrera
+    if (abriendo && !abierta) {
+      const subida = Math.min(3.9 - desplazamientoBarrera, delta * 1.5);
+
+      desplazamientoBarrera += subida;
+      barrera.position.y += subida;
+
+      franjas.forEach((f) => {
+        f.position.y += subida;
+      });
+
+      if (desplazamientoBarrera >= 3.899) {
+        abierta = true;
+        luzBarrera.color.set(0x33ff77);
+      }
+    }
+
+    // hay que matar al tank para extraer
+    if (abierta && tankMuerto && etapa === 10) {
+      etapa = 11;
+      actualizarHUD();
+    }
+
+    // victoria
+    const distanciaFinal = Math.hypot(camara.position.x, camara.position.z + 27);
+
+    if (etapa === 11 && tankMuerto && distanciaFinal < 3.5 && camara.position.y > 3.9) {
+      terminar(true);
+    }
+
+    // batalla final
+    if (activado && !tankMuerto) {
+      estado.textContent =
+        "TANK vivo | Barrera: " +
+        (abierta ? "ABIERTA" : Math.max(0, Math.ceil(tiempoApertura)) + " s");
+    }
+
+    // textos de interaccion
+    if (performance.now() > avisoHasta) {
+      const s = cajaCercana();
+
+      if (s) {
+        mensaje.textContent = "Presiona E para recoger munición de " + s.tipo;
+
+        mensaje.style.display = "block";
+      } else if (etapa === 9 && distanciaControl() < 2.6) {
+        mensaje.textContent = "Presiona E para activar la barrera";
+
+        mensaje.style.display = "block";
+      } else {
+        mensaje.style.display = "none";
+      }
+    }
+  }
+
+  // animación de armas
+
+  retroceso = THREE.MathUtils.lerp(retroceso, 0, Math.min(1, delta * 15));
+
+  for (const nombre in armas) {
+    const grupo = armas[nombre].grupo;
+
+    if (grupo) {
+      grupo.position.z = -0.9 + retroceso;
+      grupo.position.y = -0.38 + retroceso * 0.3;
+    }
+  }
+
+  // destello de disparo
+
+  if (flashDuracion > 0) {
+    flashDuracion -= delta;
+
+    if (flashDuracion <= 0) {
+      destello.visible = false;
+      luzDisparo.intensity = 0;
+    }
+  }
+
+  // marcas de impacto
+
+  for (let i = impactos.length - 1; i >= 0; i--) {
+    impactos[i].vida -= delta;
+
+    if (impactos[i].vida <= 0) {
+      escena.remove(impactos[i].m);
+      impactos[i].m.geometry.dispose();
+      impactos[i].m.material.dispose();
+      impactos.splice(i, 1);
+    }
+  }
+
+  // efectos de explosión
+
+  for (let i = explosiones.length - 1; i >= 0; i--) {
+    const efecto = explosiones[i];
+
+    efecto.vida -= delta;
+
+    const progreso = 1 - efecto.vida / 0.4;
+
+    efecto.m.scale.setScalar(1 + progreso * 3);
+
+    efecto.m.material.opacity = Math.max(0, 0.8 * (1 - progreso));
+
+    if (efecto.vida <= 0) {
+      escena.remove(efecto.m);
+      efecto.m.geometry.dispose();
+      efecto.m.material.dispose();
+      explosiones.splice(i, 1);
+    }
+  }
+
+  actualizarMusica(delta);
+  renderer.render(escena, camara);
+}
+
+// iniciar juego
+
+actualizarHUD();
+actualizarArmasHUD();
+animar();
+
+// ajustar ventana
+
+window.addEventListener("resize", () => {
+  camara.aspect = window.innerWidth / window.innerHeight;
+
+  camara.updateProjectionMatrix();
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+</body>
+</html>
